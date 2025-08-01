@@ -5,8 +5,10 @@ from alpaca.data.timeframe import TimeFrame
 from alpaca.data.enums import DataFeed
 import pandas as pd
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 import requests
 import sqlite3
+import os
 
 
 API_KEY = "PK14NYIQ2DYVASM9WLKG"
@@ -37,6 +39,7 @@ CREATE TABLE IF NOT EXISTS quotes (
 conn.commit()
 
 stock_stream = StockDataStream(API_KEY, SECRET_KEY)
+client = StockHistoricalDataClient(API_KEY, SECRET_KEY)
 
 # async handler
 
@@ -98,7 +101,21 @@ def getData():
 
 
 def getHistoricalData(tickerSymbol=STOCK_SYMBOL):
+    one_month_ago = datetime.now() - relativedelta(months=1)
+    HISTORICAL_START_DAY = one_month_ago.day
+    HISTORICAL_START_MONTH = one_month_ago.month
+    HISTORICAL_START_YEAR = one_month_ago.year
+
+    HISTORICAL_END_DAY = datetime.now().day
+    HISTORICAL_END_MONTH = datetime.now().month
+    HISTORICAL_END_YEAR = datetime.now().year
+
     client = StockHistoricalDataClient(API_KEY, SECRET_KEY)
+
+    folder_path = f"HistoricalData/S&P_{HISTORICAL_START_YEAR}-{HISTORICAL_START_MONTH}-{HISTORICAL_START_DAY}:{HISTORICAL_END_YEAR}-{HISTORICAL_END_MONTH}-{HISTORICAL_END_DAY}"
+
+    # Create the directory if it doesn't exist
+    os.makedirs(folder_path, exist_ok=True)
 
     # Set request parameters
     request_params = StockBarsRequest(
@@ -117,7 +134,7 @@ def getHistoricalData(tickerSymbol=STOCK_SYMBOL):
     print(df.head())
 
     # Optional: save to CSV
-    df.to_csv(f"HistoricalData/{tickerSymbol}_{HISTORICAL_START_YEAR}_{HISTORICAL_START_MONTH}_{HISTORICAL_START_DAY}.csv")
+    df.to_csv(f"HistoricalData/S&P_{HISTORICAL_START_YEAR}-{HISTORICAL_START_MONTH}-{HISTORICAL_START_DAY}:{HISTORICAL_END_YEAR}-{HISTORICAL_END_MONTH}-{HISTORICAL_END_DAY}/{tickerSymbol}.csv")
 
 
 def getAllSAPTickers():
@@ -127,6 +144,21 @@ def getAllSAPTickers():
 
     for ticker in tickers.Symbol.to_list():
         getHistoricalData(ticker)
+
+
+def getBetaSAP(csv):
+    df = pd.read_csv(csv)
+    df["date"] = pd.to_datetime(df["date"])
+    one_week_ago = datetime.now() - relativedelta(months=1)
+    today = datetime.now()
+
+
+    day_Beta = 1.0
+    week_Beta = 1.0
+    month_Beta = 1.0
+
+    # for 
+    # month_Beta = 
 
 
 
