@@ -100,7 +100,7 @@ def getData():
     print(response.text)
 
 
-def getHistoricalData(tickerSymbol=STOCK_SYMBOL):
+def getHistoricalDataMin(tickerSymbol=STOCK_SYMBOL):
     one_month_ago = datetime.now() - relativedelta(months=1)
     HISTORICAL_START_DAY = one_month_ago.day
     HISTORICAL_START_MONTH = one_month_ago.month
@@ -134,7 +134,45 @@ def getHistoricalData(tickerSymbol=STOCK_SYMBOL):
     print(df.head())
 
     # Optional: save to CSV
-    df.to_csv(f"HistoricalData/S&P_{HISTORICAL_START_YEAR}-{HISTORICAL_START_MONTH}-{HISTORICAL_START_DAY}:{HISTORICAL_END_YEAR}-{HISTORICAL_END_MONTH}-{HISTORICAL_END_DAY}/{tickerSymbol}.csv")
+    df.to_csv(f"HistoricalData/Min/S&P_{HISTORICAL_START_YEAR}-{HISTORICAL_START_MONTH}-{HISTORICAL_START_DAY}:{HISTORICAL_END_YEAR}-{HISTORICAL_END_MONTH}-{HISTORICAL_END_DAY}/{tickerSymbol}.csv")
+
+def getHistoricalDataDay(tickerSymbol=STOCK_SYMBOL):
+
+
+    one_month_ago = datetime.now() - relativedelta(months=1)
+    HISTORICAL_START_DAY = one_month_ago.day
+    HISTORICAL_START_MONTH = one_month_ago.month
+    HISTORICAL_START_YEAR = one_month_ago.year
+
+    HISTORICAL_END_DAY = datetime.now().day
+    HISTORICAL_END_MONTH = datetime.now().month
+    HISTORICAL_END_YEAR = datetime.now().year
+
+    client = StockHistoricalDataClient(API_KEY, SECRET_KEY)
+
+    folder_path = f"HistoricalData/Day/S&P_{HISTORICAL_START_YEAR}-{HISTORICAL_START_MONTH}-{HISTORICAL_START_DAY}:{HISTORICAL_END_YEAR}-{HISTORICAL_END_MONTH}-{HISTORICAL_END_DAY}"
+
+    # Create the directory if it doesn't exist
+    os.makedirs(folder_path, exist_ok=True)
+
+    # Set request parameters
+    request_params = StockBarsRequest(
+        symbol_or_symbols=[tickerSymbol],
+        timeframe=TimeFrame.Day,
+        start=datetime(HISTORICAL_START_YEAR, HISTORICAL_START_MONTH, HISTORICAL_START_DAY),
+        end=datetime(HISTORICAL_END_YEAR, HISTORICAL_END_MONTH, HISTORICAL_END_DAY),
+        feed=DataFeed.IEX
+    )
+
+    # Fetch bars
+    bars = client.get_stock_bars(request_params)
+
+    # Convert to DataFrame
+    df = bars.df
+    print(df.head())
+
+    # Optional: save to CSV
+    df.to_csv(f"HistoricalData/Day/S&P_{HISTORICAL_START_YEAR}-{HISTORICAL_START_MONTH}-{HISTORICAL_START_DAY}:{HISTORICAL_END_YEAR}-{HISTORICAL_END_MONTH}-{HISTORICAL_END_DAY}/{tickerSymbol}.csv")
 
 
 def getAllSAPTickers():
@@ -143,25 +181,99 @@ def getAllSAPTickers():
     print(tickers.head())
 
     for ticker in tickers.Symbol.to_list():
-        getHistoricalData(ticker)
+        getHistoricalDataDay(ticker)
 
 
 def getBetaSAP(csv):
-    df = pd.read_csv(csv)
-    df["date"] = pd.to_datetime(df["date"])
-    one_week_ago = datetime.now() - relativedelta(months=1)
-    today = datetime.now()
+    df = pd.read_csv(csv, parse_dates=["timestamp"])
 
+    ticker = df['symbol'][1]
 
-    day_Beta = 1.0
-    week_Beta = 1.0
-    month_Beta = 1.0
+    one_month_ago = datetime.now() - relativedelta(months=1)
 
-    # for 
-    # month_Beta = 
+    HISTORICAL_START_DAY = one_month_ago.day
+    HISTORICAL_START_MONTH = one_month_ago.month
+    HISTORICAL_START_YEAR = one_month_ago.year
+
+    HISTORICAL_END_DAY = datetime.now().day
+    HISTORICAL_END_MONTH = datetime.now().month
+    HISTORICAL_END_YEAR = datetime.now().year
+
+    start_date = pd.to_datetime(f"{HISTORICAL_START_YEAR}-{HISTORICAL_START_MONTH}-{HISTORICAL_START_DAY}")
+    end_date = pd.to_datetime(f"{HISTORICAL_END_YEAR}-{HISTORICAL_END_MONTH}-{HISTORICAL_END_DAY}")
+
+    mask = (df["timestamp"] >= start_date) & (df["timestamp"] <= end_date)
+    filtered_df = df[mask]
+
+    # Sum a column, for example: close prices
+    total_close = filtered_df["close"].sum()
+    total_items = filtered_df['close'].count()
+
+    month_Beta = total_close/total_items
+
+    # -------------------------------------------------------
+
+    one_week_ago = datetime.now() - relativedelta(weeks=1)
+
+    HISTORICAL_START_DAY = one_week_ago.day
+    HISTORICAL_START_MONTH = one_week_ago.month
+    HISTORICAL_START_YEAR = one_week_ago.year
+
+    start_date = pd.to_datetime(f"{HISTORICAL_START_YEAR}-{HISTORICAL_START_MONTH}-{HISTORICAL_START_DAY}")
+    end_date = pd.to_datetime(f"{HISTORICAL_END_YEAR}-{HISTORICAL_END_MONTH}-{HISTORICAL_END_DAY}")
+
+    mask = (df["timestamp"] >= start_date) & (df["timestamp"] <= end_date)
+    filtered_df = df[mask]
+
+    # Sum a column, for example: close prices
+    total_close = filtered_df["close"].sum()
+    total_items = filtered_df['close'].count()
+
+    week_Beta  = total_close/total_items
+
+    
+    # -------------------------------------------------------
+
+    today_date = datetime.now()
+
+    HISTORICAL_START_DAY = today_date.day
+    HISTORICAL_START_MONTH = today_date.month
+    HISTORICAL_START_YEAR = today_date.year
+
+    start_date = pd.to_datetime(f"{HISTORICAL_START_YEAR}-{HISTORICAL_START_MONTH}-{HISTORICAL_START_DAY}")
+    
+    mask = (df["timestamp"] == start_date)
+    filtered_df = df[mask]
+
+    # Sum a column, for example: close prices
+    total_close = filtered_df["close"].sum()
+    total_items = filtered_df['close'].count()
+
+    day_Beta  = total_close/total_items
+
+    # -------------------------------------------------------   
+
+    file_path = f"BetaData/{folder_path}/S&P_{HISTORICAL_START_YEAR}-{HISTORICAL_START_MONTH}-{HISTORICAL_START_DAY}.csv"
+
+    file_exists = os.path.exists(file_path)
+
+    data = {
+    'ticker': [ticker],
+    'day_Beta': [day_Beta],
+    'week_Beta': [week_Beta],
+    'month_Beta': [month_Beta]
+    }
+
+    df_new = pd.DataFrame(data)
+
+    conn = sqlite3.connect('my_database.db')
+    
+    df_new.to_sql(file_path, mode='a', index=False, header=not file_exists)
+
+    conn.close()
 
 
 
 
 if __name__ == '__main__':
-    getAllSAPTickers()
+    getBetaSAP('HistoricalData/Day/S&P_2025-7-1:2025-8-1/A.csv')
